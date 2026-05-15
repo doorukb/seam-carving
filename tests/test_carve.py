@@ -1,3 +1,7 @@
+"""Carving tests."""
+
+from __future__ import annotations
+
 import numpy as np
 import pytest
 
@@ -44,3 +48,24 @@ def test_remove_vertical_roundtrip_with_found_seam():
     seam = sc.find_vertical_seam(img)
     carved = sc.remove_vertical_seam(img, seam)
     assert carved.shape == (10, 11, 3)
+
+
+def test_carve_vertical_shrink_width() -> None:
+    img = np.random.randint(0, 255, size=(24, 32, 3), dtype=np.uint8)
+    out = sc.carve_vertical_seams(img, 4)
+    assert out.shape == (24, 28, 3)
+    assert out.dtype == np.uint8
+
+
+def test_carve_horizontal_shrink_height() -> None:
+    img = np.random.randint(0, 255, size=(24, 32, 3), dtype=np.uint8)
+    out = sc.carve_horizontal_seams(img, 5)
+    assert out.shape == (19, 32, 3)
+    assert out.dtype == np.uint8
+
+
+def test_carve_vertical_zero_seams_unchanged_shape() -> None:
+    img = np.random.randint(0, 255, size=(8, 10, 3), dtype=np.uint8)
+    out = sc.carve_vertical_seams(img, 0)
+    assert out.shape == img.shape
+    np.testing.assert_array_equal(out, img)

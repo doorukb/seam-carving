@@ -1,7 +1,8 @@
-import numpy as np
-from PIL import Image
+"""Pure NumPy seam carving (energy map, seam finding, carving)."""
 
-SAMPLE_IMAGE_PATH = "your_image.jpg"
+from __future__ import annotations
+
+import numpy as np
 
 # BT.601 luma weights (same order as RGB)
 _LUMA_W = np.array([0.299, 0.587, 0.114], dtype=np.float32)
@@ -71,7 +72,7 @@ def find_vertical_seam_from_energy(energy: np.ndarray) -> np.ndarray:
     return _vertical_seam_dp(energy)
 
 
-def find_vertical_seam(image: np.ndarray, energy=None):
+def find_vertical_seam(image: np.ndarray, energy: np.ndarray | None = None) -> np.ndarray:
     if energy is None:
         energy = compute_energy(image)
 
@@ -85,7 +86,7 @@ def find_vertical_seam(image: np.ndarray, energy=None):
     return find_vertical_seam_from_energy(energy)
 
 
-def find_horizontal_seam(image: np.ndarray, energy=None):
+def find_horizontal_seam(image: np.ndarray, energy: np.ndarray | None = None) -> np.ndarray:
     if energy is not None:
         et = np.transpose(energy)
         if not et.flags.c_contiguous:
@@ -116,150 +117,53 @@ def remove_horizontal_seam(image: np.ndarray, seam: np.ndarray) -> np.ndarray:
     return out
 
 
-def main():
-    # Generate a visualization of the energy and 2 visualizations of the seam carving algorithm.
-    # open image with pillow, an active fork of the defunct PIL library
-    p = Image.open(SAMPLE_IMAGE_PATH)
-    # image could be other modes like RGBA, YCbCr, or L or something
-    p = p.convert(mode="RGB")
-    # limit max size
-    p.thumbnail(size=(800, 500))
-    R, G, B = 0, 1, 2
+def _remove_vertical_seam(image: np.ndarray, seam: np.ndarray) -> np.ndarray:
+    h, w, c = image.shape
+    rows = np.arange(h, dtype=int)
+    mask = np.ones((h, w), dtype=bool)
+    mask[rows, seam] = False
+    return image[mask].reshape(h, w - 1, c)
 
-    # -------------------- energy -------------------------------
 
-    # convert image to an array. Since default datatype for an RGB
-    # image is in unsigned 8 bit integer, convert it to a regular int
-    # to avoid hard-to-debug shenanigans like over/underflow
-    image = np.array(p).astype(int)
-    # compute the energy. Since the boundary is 1000 and would reduce
-    # the visibility of the more interesting parts after normalization,
-    # crop the "frame" to improve visualization
-    energy = compute_energy(image)[1:-1, 1:-1]
-    # uncomment to see the log-adjusted intensity.
-    # energy = np.log(energy + 1)
-
-    # normalization for visualization
-    # darken the least value to black
-    energy = energy - np.min(energy)
-    # lighten the greatest value to white
-    energy = energy / np.max(energy)
-    # fit the value between [0, 255]
-    energy *= 256
-    energy = np.floor(energy)
-    energy[energy == 256] = 255
-
-    # convert values to an image
-    energy_visualization = Image.fromarray(energy.astype(np.uint8), mode="L")
-    energy_visualization.save("energy.png")
-
-    # -------------------- vertical carving ---------------------
-
-    # for an image of shape (height, width, channel)
-    # build a visualization by gradually carving axis 1
-    image = np.array(p).astype(int)
-    original_shape = image.shape
-
-    # sequence of frames to be animated
-    sequence = []
-
-    # cap number of seams to carve at 200
-    for _ in range(min([200, original_shape[1]])):
-        # Create a frame for the seam to be carved away in red
-        vertical_indices = tuple(np.arange(image.shape[0]))
-        horizontal_indices = tuple(find_vertical_seam(image))
-        image[vertical_indices, horizontal_indices, R] = 255
-        image[vertical_indices, horizontal_indices, G] = 0
-        image[vertical_indices, horizontal_indices, B] = 0
-
-        # append black pixels to make up for pixels carved away
-        sequence.append(Image.fromarray(
-            np.append(image, np.zeros((
-                original_shape[0],
-                original_shape[1] - image.shape[1],
-                original_shape[2],
-            )), axis=1).astype(np.uint8)
-        ))
-
-        image = remove_vertical_seam(image, np.asarray(horizontal_indices))
-
-        # append black pixels to make up for pixels carved away
-        sequence.append(Image.fromarray(
-            np.append(image, np.zeros((
-                original_shape[0],
-                original_shape[1] - image.shape[1],
-                original_shape[2],
-            )), axis=1).astype(np.uint8)
-        ))
-
-    # save the final, carved image
-    final_image = Image.fromarray(image.astype(np.uint8))
-    final_image.save("vertical_carving_final.png")
-
-    # build GIF
-    p.save(
-        "vertical_carving.gif",
-        save_all=True,
-        append_images=sequence,
-        # uncomment this line to create infinite looping GIF
-        # loop=0,
-        # uncomment this line to control the speed of GIF
-        # duration=40,
+def _remove_horizontal_seam(image: np.ndarray, seam: np.ndarray) -> np.ndarray:
+    h, w, c = image.shape
+    cols = np.arange(w, dtype=int)
+    mask = np.full(image.shape, True, dtype=bool)
+    mask[seam, cols] = False
+    return (
+        image.transpose(1, 0, 2)[mask.transpose(1, 0, 2)]
+        .reshape(w, h - 1, c)
+        .transpose(1, 0, 2)
     )
 
-    # -------------------- horizontal carving -------------------
 
-    # for an image of shape (height, width, channel)
-    # build a visualization by gradually carving axis 0
-    image = np.array(p).astype(int)
-    original_shape = image.shape
+def carve_vertical_seams(image: np.ndarray, n_seams: int) -> np.ndarray:
+    """Remove ``n_seams`` vertical seams. Carves on integer RGB; returns ``uint8``."""
+    work = np.asarray(image, dtype=np.int64)
+    if work.ndim != 3 or work.shape[2] != 3:
+        raise ValueError("Expected RGB array with shape (height, width, 3).")
+    n = int(n_seams)
+    if n < 0:
+        raise ValueError("n_seams must be non-negative.")
+    max_removable = max(work.shape[1] - 1, 0)
+    n = min(n, max_removable)
+    for _ in range(n):
+        seam = find_vertical_seam(work)
+        work = _remove_vertical_seam(work, seam)
+    return np.clip(work, 0, 255).astype(np.uint8)
 
-    # sequence of frames to be animated
-    sequence = []
 
-    # cap number of seams to carve at 200
-    for _ in range(min([200, original_shape[0]])):
-        # Create a frame for the seam to be carved away in red
-        vertical_indices = tuple(find_horizontal_seam(image))
-        horizontal_indices = tuple(np.arange(image.shape[1]))
-        image[vertical_indices, horizontal_indices, R] = 255
-        image[vertical_indices, horizontal_indices, G] = 0
-        image[vertical_indices, horizontal_indices, B] = 0
-
-        # append black pixels to make up for pixels carved away
-        sequence.append(Image.fromarray(
-            np.append(image, np.zeros((
-                original_shape[0] - image.shape[0],
-                original_shape[1],
-                original_shape[2],
-            )), axis=0).astype(np.uint8)
-        ))
-
-        image = remove_horizontal_seam(image, np.asarray(vertical_indices))
-
-        # append black pixels to make up for pixels carved away
-        sequence.append(Image.fromarray(
-            np.append(image, np.zeros((
-                original_shape[0] - image.shape[0],
-                original_shape[1],
-                original_shape[2],
-            )), axis=0).astype(np.uint8)
-        ))
-
-    # save the final, carved image
-    final_image = Image.fromarray(image.astype(np.uint8))
-    final_image.save("horizontal_carving_final.png")
-
-    # build GIF
-    p.save(
-        "horizontal_carving.gif",
-        save_all=True,
-        append_images=sequence,
-        # uncomment this line to create infinite looping GIF
-        # loop=0,
-        # uncomment this line to control the speed of GIF
-        # duration=40,
-    )
-
-if __name__ == "__main__":
-    main()
+def carve_horizontal_seams(image: np.ndarray, n_seams: int) -> np.ndarray:
+    """Remove ``n_seams`` horizontal seams. Carves on integer RGB; returns ``uint8``."""
+    work = np.asarray(image, dtype=np.int64)
+    if work.ndim != 3 or work.shape[2] != 3:
+        raise ValueError("Expected RGB array with shape (height, width, 3).")
+    n = int(n_seams)
+    if n < 0:
+        raise ValueError("n_seams must be non-negative.")
+    max_removable = max(work.shape[0] - 1, 0)
+    n = min(n, max_removable)
+    for _ in range(n):
+        seam = find_horizontal_seam(work)
+        work = _remove_horizontal_seam(work, seam)
+    return np.clip(work, 0, 255).astype(np.uint8)

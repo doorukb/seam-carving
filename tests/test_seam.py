@@ -1,8 +1,13 @@
+"""Seam finder regression tests."""
+
+from __future__ import annotations
+
 import numpy as np
 import pytest
 from unittest import mock
 
 import seam_carver as sc
+from seam_carver import compute_energy, find_vertical_seam
 
 
 def _reference_vertical_seam(energy: np.ndarray) -> np.ndarray:
@@ -81,3 +86,11 @@ def test_horizontal_equals_vertical_on_transpose_no_noise():
     h1 = sc.find_horizontal_seam(img, energy=e)
     v_on_t = sc.find_vertical_seam_from_energy(np.transpose(e))
     np.testing.assert_array_equal(h1, v_on_t)
+
+
+def test_vertical_seam_explicit_energy_no_noise() -> None:
+    img = np.zeros((10, 12, 3), dtype=np.uint8)
+    e = np.ones((10, 12), dtype=np.float64)
+    s = find_vertical_seam(img, e)
+    assert s.shape == (10,)
+    assert np.all((s >= 0) & (s < 12))
