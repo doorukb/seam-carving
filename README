@@ -15,9 +15,9 @@ The dependencies are:
 
 USAGE 
 
-1. Place the image you want to resize in the project directory and set SAMPLE_IMAGE_PATH at the top of src/seam_carver.py to point to it.
-2. Run the script:
-       python src/seam_carver.py
+1. Place the image you want to resize in the project directory.
+2. Run the GIF generation script:
+       python src/seam_carving_gifs.py --image path/to/your_image.jpg
 3. The following output files will be written to the working directory:
    energy.png
        A grayscale visualization of the energy map computed from the input image. Brighter pixels
@@ -65,7 +65,7 @@ The algorithm runs in three stages:
        OPT[i][j] = E(i,j) + min(OPT[i+1][j-1], OPT[i+1][j], OPT[i+1][j+1])
        where out-of-bounds neighbors are treated as having infinite cost.
 
-   After filling the table, the seam is recovered by greedily following the minimum-cost pathfrom top to bottom.
+   After filling the table, the seam is recovered by greedily following the minimum-cost path from top to bottom.
 
    Runtime: O(H * W) time and O(H * W) space.
 
