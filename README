@@ -2,8 +2,7 @@ Seam Carving
 
 Seam carving is a content-aware image resizing algorithm that reduces an image's dimensions by repeatedly removing seams, which are connected paths of pixels spanning the full height (vertical seams) or width (horizontal seams) of the image. Unlike cropping or rescaling, seam carving preserves the most visually significant parts of the image by preferentially removing low-energy pixels, that is, pixels that contrast least with their neighbors.
 
-This implementation supports both vertical and horizontal seam removal and produces animated GIF visualizations of the carving process alongside the final resized image.
-
+Supporting both vertical and horizontal seam removal
 
 INSTALLATION
 Python 3 is required. Install the dependencies with:
@@ -12,30 +11,32 @@ The dependencies are:
   - numpy
   - pillow
 
+USAGE
 
-USAGE 
+Run in terminal : 
+    python ui/app.py
 
-1. Place the image you want to resize in the project directory and set SAMPLE_IMAGE_PATH at the top of src/seam_carver.py to point to it.
-2. Run the script:
+Upload an image, choose vertical or horizontal carving, set the number of seams, and run. A
+counter shows carving progress (x/N) while the job runs in the background.
+After carving is done you can save your image and then start working on an new image immediately after.
+
+Legacy demo script :
+
+1. Set SAMPLE_IMAGE_PATH at the top of src/seam_carver.py to your image (or place your_image.jpg
+   in the working directory).
+2. Run:
        python src/seam_carver.py
-3. The following output files will be written to the working directory:
+3. The following files are written to the working directory:
+
    energy.png
-       A grayscale visualization of the energy map computed from the input image. Brighter pixels
-       have higher energy and are less likely to be removed.
+       Grayscale energy map (interior only, normalized for display).
 
-   vertical_carving.gif
-       An animated GIF showing the vertical seam carving process. Each frame highlights the seam
-       being removed in red before collapsing it. Up to 200 seams are carved.
+   vertical_carving.gif / horizontal_carving.gif
+       Animated previews. The demo caps seams at GIF_MAX_SEAMS (40) and uses thumbnail-sized GIF
+       frames (GIF_FRAME_MAX_SIZE) to limit memory.
 
-   vertical_carving_final.png
-       The result of the vertical carving process, with up to 200 columns removed.
-
-   horizontal_carving.gif
-       An animated GIF showing the horizontal seam carving process, same as above but operating
-       on rows instead of columns.
-
-   horizontal_carving_final.png
-       The result of the horizontal carving process, with up to 200 rows removed.
+   vertical_carving_final.png / horizontal_carving_final.png
+       Still results after carving up to GIF_MAX_SEAMS seams in the demo loop.
 
 
 ALGORITHM
@@ -43,11 +44,12 @@ ALGORITHM
 The algorithm runs in three stages:
 
 1. Compute Energy
-   Each pixel is assigned an energy value representing its visual significance. Edge pixels receive a fixed energy of 1000. Interior pixels use the dual-gradient formula:
+   Each pixel is assigned an energy value representing its visual significance. Border pixels are
+   fixed at 1000. RGB input is converted to luminance (BT.601) in float32; interior energy is from
+   luminance gradients. The default is a central-difference gradient; optional Sobel or Scharr
+   operators are available via compute_energy(..., gradient=...).
 
-       E(i, j) = sqrt( sum over channels c of (I(i+1,j,c) - I(i-1,j,c))^2 + (I(i,j+1,c) - I(i,j-1,c))^2 )
-
-   Runtime: O(H * W * C), where H = height, W = width, C = number of color channels.
+   Runtime: O(H * W) for the default path (single luminance channel).
 
 2. Find the Minimum-Energy Seam
 
@@ -65,9 +67,10 @@ The algorithm runs in three stages:
        OPT[i][j] = E(i,j) + min(OPT[i+1][j-1], OPT[i+1][j], OPT[i+1][j+1])
        where out-of-bounds neighbors are treated as having infinite cost.
 
-   After filling the table, the seam is recovered by greedily following the minimum-cost pathfrom top to bottom.
+   After the forward pass, the seam is recovered by following backpointers from top to bottom.
 
-   Runtime: O(H * W) time and O(H * W) space.
+   Runtime: O(H * W) time; peak memory for the DP is O(H * W) for backpointers plus O(W) row
+   buffers rather than a full floating-point cumulative cost matrix.
 
    Horizontal seams are found by transposing the image and applying the same procedure.
 
@@ -78,16 +81,15 @@ The algorithm runs in three stages:
    Total runtime for k vertical seams: O(k * H * W).
    Total runtime for k horizontal seams: O(k * H * W).
 
-Overall: removing k seams from an image with height H, width W, and C color channels takes
-O(k * H * W * C) time and O(H * W) memory.
+Overall: removing k seams from an image of height H and width W takes O(k * H * W) time for the
+naive recompute-each-seam pipeline; peak memory scales roughly with the image and small
+overheads (energy map, backpointers, seam buffers), not with k full duplicate cost tables.
 
 
 Roadmap
 
-- Allow the number of seams to carve to be specified via command-line arguments instead of
-  being hardcoded.
 - Add support for seam insertion to enlarge images, not just shrink them.
 - Add an option to protect regions of the image from being carved, using a user-supplied mask.
 - Add an option to force certain regions to be carved first, using a user-supplied mask.
 - Explore forward energy as an alternative energy function to reduce artifacts.
-- Add a progress indicator for long carving runs.
+- Incremental or band-limited energy updates for faster many-seam carving on very large images.
