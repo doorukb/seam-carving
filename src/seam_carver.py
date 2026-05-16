@@ -1,7 +1,6 @@
 import sys
 from collections.abc import Callable
 import numpy as np
-from PIL import Image
 
 GIF_MAX_SEAMS = 40
 GIF_FRAME_MAX_SIZE = (480, 480)
