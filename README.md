@@ -95,12 +95,3 @@ The algorithm runs in three stages:
 Overall: removing k seams from an image of height H and width W takes O(k * H * W) time for the
 naive recompute-each-seam pipeline; peak memory scales roughly with the image and small
 overheads (energy map, backpointers, seam buffers), not with k full duplicate cost tables.
-
-
-Roadmap
-
-- Add support for seam insertion to enlarge images, not just shrink them.
-- Add an option to protect regions of the image from being carved, using a user-supplied mask.
-- Add an option to force certain regions to be carved first, using a user-supplied mask.
-- Explore forward energy as an alternative energy function to reduce artifacts.
-- Incremental or band-limited energy updates for faster many-seam carving on very large images.
