@@ -1,17 +1,21 @@
-Seam Carving
+# Seam Carving
+
+[![CI](https://github.com/doorukb/Seam-carving/actions/workflows/ci.yml/badge.svg)](https://github.com/doorukb/Seam-carving/actions/workflows/ci.yml)
 
 Seam carving is a content-aware image resizing algorithm that reduces an image's dimensions by repeatedly removing seams, which are connected paths of pixels spanning the full height (vertical seams) or width (horizontal seams) of the image. Unlike cropping or rescaling, seam carving preserves the most visually significant parts of the image by preferentially removing low-energy pixels, that is, pixels that contrast least with their neighbors.
 
 Supporting both vertical and horizontal seam removal
 
-INSTALLATION
+## Installation
+
 Python 3 is required. Install the dependencies with:
     pip install -r requirements.txt
 The dependencies are:
   - numpy
   - pillow
 
-USAGE
+## Usage
+
 
 Run in terminal : 
     python ui/app.py
@@ -20,7 +24,7 @@ Upload an image, choose vertical or horizontal carving, set the number of seams,
 counter shows carving progress (x/N) while the job runs in the background.
 After carving is done you can save your image and then start working on an new image immediately after.
 
-Legacy demo script :
+### Legacy demo script
 
 1. Set SAMPLE_IMAGE_PATH at the top of src/seam_carver.py to your image (or place your_image.jpg
    in the working directory).
@@ -93,3 +97,8 @@ Roadmap
 - Add an option to force certain regions to be carved first, using a user-supplied mask.
 - Explore forward energy as an alternative energy function to reduce artifacts.
 - Incremental or band-limited energy updates for faster many-seam carving on very large images.
+
+## Testing
+
+    pip install pytest
+    python -m pytest tests/ -q
