@@ -1,5 +1,5 @@
 __pycache__/
-tests/
-pytest.ini
-.pytest_cache
-src/__pycache__
+.pytest_cache/
+*.gif
+energy.png
+*_final.png
