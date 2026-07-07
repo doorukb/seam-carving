@@ -1,28 +1,21 @@
-Seam Carving
+# Seam Carving
+
+[![CI](https://github.com/doorukb/Seam-carving/actions/workflows/ci.yml/badge.svg)](https://github.com/doorukb/Seam-carving/actions/workflows/ci.yml)
 
 Seam carving is a content-aware image resizing algorithm that reduces an image's dimensions by repeatedly removing seams, which are connected paths of pixels spanning the full height (vertical seams) or width (horizontal seams) of the image. Unlike cropping or rescaling, seam carving preserves the most visually significant parts of the image by preferentially removing low-energy pixels, that is, pixels that contrast least with their neighbors.
+
 Supporting both vertical and horizontal seam removal
 
+## Installation
 
-ORIGINAL IMAGE : 
-
-<img width="577" height="385" alt="beautiful-shot-brown-squirrel-fields-transformed" src="https://github.com/user-attachments/assets/ae4985f7-0b48-47e8-9197-b0d2a4c9f278" />
-
-
-
-HORIZONTAL & VERTICAL CARVING : 
-
-<img width="577" height="295" alt="horizontal_carved" src="https://github.com/user-attachments/assets/1fc0fcf0-6236-493d-9c31-ff394c94396c" />    <img width="425" height="385" alt="vertical_carved" src="https://github.com/user-attachments/assets/47a2a91d-d9bc-474f-8f8f-cd4a6fe65ff0" />
-
-
-INSTALLATION
 Python 3 is required. Install the dependencies with:
     pip install -r requirements.txt
 The dependencies are:
   - numpy
   - pillow
 
-USAGE
+## Usage
+
 
 Run in terminal : 
     python ui/app.py
@@ -31,7 +24,7 @@ Upload an image, choose vertical or horizontal carving, set the number of seams,
 counter shows carving progress (x/N) while the job runs in the background.
 After carving is done you can save your image and then start working on an new image immediately after.
 
-Legacy demo script :
+### Legacy demo script
 
 1. Set SAMPLE_IMAGE_PATH at the top of src/seam_carver.py to your image (or place your_image.jpg
    in the working directory).
@@ -95,3 +88,8 @@ The algorithm runs in three stages:
 Overall: removing k seams from an image of height H and width W takes O(k * H * W) time for the
 naive recompute-each-seam pipeline; peak memory scales roughly with the image and small
 overheads (energy map, backpointers, seam buffers), not with k full duplicate cost tables.
+
+## Testing
+
+    pip install pytest
+    python -m pytest tests/ -q
